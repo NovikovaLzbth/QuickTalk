@@ -14,7 +14,7 @@ import FirebaseStorage
 class FirebaseManager: NSObject {
     
     let auth: Auth
-    let storage: Storage
+    let firestore: Firestore
     
     static let shared = FirebaseManager()
     
@@ -22,7 +22,7 @@ class FirebaseManager: NSObject {
         FirebaseApp.configure()
         
         self.auth = Auth.auth()
-        self.storage = Storage.storage()
+        self.firestore = Firestore.firestore()
         
         super.init()
     }
@@ -43,7 +43,7 @@ struct LoginView: View {
                 VStack(spacing: 16) {
                     Picker(selection: $isLoginMode, label:
                             Text("Picker here")) {
-                        Text("Логин")
+                        Text("Войти")
                             .tag(true)
                         Text("Создать Аккаунт")
                             .tag(false)
@@ -151,29 +151,50 @@ struct LoginView: View {
             print("Success creating user: \(result?.user.uid ?? "No UID")")
             self.loginStatusMessage = "Success creating user: \(result?.user.uid ?? "No UID")"
             
-            self.persistImageToStorage()
+            guard let uid = result?.user.uid else { return }
+            self.loginStatusMessage = "Аккаунт создан!"
+            
+            // Сохранение аватарки
+            self.saveAvatar(uid: uid)
         }
     }
     
-    private func persistImageToStorage() {
-        let fileName = UUID().uuidString
-        guard let uid = FirebaseManager.shared.auth.currentUser?.uid
-        else { return }
-        let ref = FirebaseManager.shared.storage.reference(withPath: uid)
-        guard let imageData = self.image?.jpegData(compressionQuality: 0.5)
-        else { return }
-        ref.putData(imageData, metadata: nil) { metadata, err in
-            if let err = err {
-                self.loginStatusMessage = "Failed to push: \(err)"
-                return
+    // Простой метод сохранения аватарки
+    private func saveAvatar(uid: String) {
+        // Проверка и оптимизация изображения
+        let optimizedImage = self.image?.resized(to: CGSize(width: 400, height: 400))
+        guard let imageData = optimizedImage?.jpegData(compressionQuality: 0.7) else {
+            self.loginStatusMessage = "Ошибка обработки изображения"
+            return
+        }
+        
+        // Проверка размера (Firestore ограничение 1MB)
+        guard imageData.count <= 1_000_000 else {
+            self.loginStatusMessage = "Изображение слишком большое (макс. 1MB)"
+            return
+        }
+        
+        // Сохранение в Firestore как Base64
+        FirebaseManager.shared.firestore.collection("users").document(uid).setData([
+            "email": self.email,
+            "avatar": imageData.base64EncodedString(),
+            "createdAt": Timestamp(),
+            "uid": uid
+        ]) { error in
+            if let error = error {
+                self.loginStatusMessage = "Ошибка сохранения: \(error.localizedDescription)"
+            } else {
+                self.loginStatusMessage = "Аватар успешно сохранён!"
             }
-            ref.downloadURL { url, err in
-                if let err = err {
-                    self.loginStatusMessage = "Failed to retrieve URL: \(err)"
-                    return
-                }
-                self.loginStatusMessage = "Successfully stored image: \(url?.absoluteString ?? "No URL")"
-            }
+        }
+    }
+}
+
+extension UIImage {
+    func resized(to size: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: size))
         }
     }
 }
