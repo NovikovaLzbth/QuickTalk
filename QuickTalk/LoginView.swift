@@ -6,35 +6,17 @@
 //
 
 import SwiftUI
-import CoreData
 import Firebase
-import FirebaseAuth
-import FirebaseStorage
-
-class FirebaseManager: NSObject {
-    
-    let auth: Auth
-    let firestore: Firestore
-    
-    static let shared = FirebaseManager()
-    
-    override init() {
-        FirebaseApp.configure()
-        
-        self.auth = Auth.auth()
-        self.firestore = Firestore.firestore()
-        
-        super.init()
-    }
-}
 
 struct LoginView: View {
     
-    @State var isLoginMode = false
-    @State var email = ""
-    @State var password = ""
-    @State var loginStatusMessage = ""
-    @State var shouldShowImagePicker = false
+    let didCompleteLoginProcess: () -> ()
+    
+    @State private var isLoginMode = false
+    @State private var email = ""
+    @State private var password = ""
+    @State private var loginStatusMessage = ""
+    @State private var shouldShowImagePicker = false
     @State var image: UIImage?
     
     var body: some View {
@@ -136,11 +118,18 @@ struct LoginView: View {
             }
             print("Success logged user: \(result?.user.uid ?? "No UID")")
             self.loginStatusMessage = "Success logged user: \(result?.user.uid ?? "No UID")"
+            
+            self.didCompleteLoginProcess()
         }
     }
     
     //Создание аккаунта
     private func createNewAccount() {
+        if self.image == nil {
+            self.loginStatusMessage = "Выберите аватар профиля"
+            return
+        }
+        
         FirebaseManager.shared.auth.createUser(withEmail: email, password: password) {
             result, error in
             if let err = error {
@@ -161,32 +150,27 @@ struct LoginView: View {
     
     // Простой метод сохранения аватарки
     private func saveAvatar(uid: String) {
-        // Проверка и оптимизация изображения
-        let optimizedImage = self.image?.resized(to: CGSize(width: 400, height: 400))
-        guard let imageData = optimizedImage?.jpegData(compressionQuality: 0.7) else {
-            self.loginStatusMessage = "Ошибка обработки изображения"
+        guard let image = self.image?.resized(to: CGSize(width: 400, height: 400)),
+              let imageData = image.jpegData(compressionQuality: 0.7) else {
             return
         }
         
-        // Проверка размера (Firestore ограничение 1MB)
         guard imageData.count <= 1_000_000 else {
-            self.loginStatusMessage = "Изображение слишком большое (макс. 1MB)"
             return
         }
         
-        // Сохранение в Firestore как Base64
+        let base64String = imageData.base64EncodedString()
+        
         FirebaseManager.shared.firestore.collection("users").document(uid).setData([
             "email": self.email,
-            "avatar": imageData.base64EncodedString(),
-            "createdAt": Timestamp(),
-            "uid": uid
-        ]) { error in
-            if let error = error {
-                self.loginStatusMessage = "Ошибка сохранения: \(error.localizedDescription)"
-            } else {
-                self.loginStatusMessage = "Аватар успешно сохранён!"
+            "avatar": base64String, // Сохраняем как Base64 строку
+            "uid": uid ]) { error in
+                if let error = error {
+                    self.loginStatusMessage = "Ошибка сохранения: \(error.localizedDescription)"
+                }
+                
+                self.didCompleteLoginProcess()
             }
-        }
     }
 }
 
@@ -200,5 +184,7 @@ extension UIImage {
 }
 
 #Preview {
-    LoginView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    LoginView(didCompleteLoginProcess: {
+        
+    }).environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

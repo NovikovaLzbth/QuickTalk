@@ -6,14 +6,64 @@
 //
 
 import SwiftUI
+import SDWebImageSwiftUI
+import Firebase
+
+class MainMessagesViewModel: ObservableObject {
+    
+    @Published var errorMessage = ""
+    @Published var chatUser: ChatUser?
+    @Published var isCurrentlyLoggedOut = false
+    
+    init () {
+        DispatchQueue.main.async {
+            self.isCurrentlyLoggedOut =
+            FirebaseManager.shared.auth.currentUser?.uid == nil
+        }
+        
+        fetchCurrentUser()
+    }
+    
+    func fetchCurrentUser() {
+        guard let uid = FirebaseManager.shared.auth.currentUser?.uid else {
+            self.errorMessage = "Could not find uid"
+            return
+        }
+        
+        FirebaseManager.shared.firestore.collection("users").document(uid).getDocument { snapshot, error in
+            if let error = error {
+                self.errorMessage = "Failed to fetch current user data \(error)"
+                print("Error fetching current user: \(error)")
+                return
+            }
+            
+            guard let data = snapshot?.data() else {
+                self.errorMessage = "No user data found"
+                return
+            }
+            
+            let chatUser = ChatUser(data: data)
+            self.chatUser = chatUser
+        }
+    }
+    
+    func handleSignOut() {
+        isCurrentlyLoggedOut.toggle()
+        try? FirebaseManager.shared.auth.signOut
+    }
+}
 
 struct MainMessagesView: View {
     @State var shouldShowLogOutOptions = false
+    @State var shouldShowNewMessageScreen = false
+    
+    @ObservedObject private var vm = MainMessagesViewModel()
     
     var body: some View {
         NavigationStack {
             VStack {
-                customNavBarStyle
+                
+                customNavBar
                 messagesView
             }
             // Расположение кнопки внизу
@@ -23,13 +73,20 @@ struct MainMessagesView: View {
         }
     }
     
-    private var customNavBarStyle: some View {
+    private var customNavBar: some View {
         HStack {
-            Image(systemName: "person.fill")
-                .font(.system(size: 34,weight: .heavy))
+            
+            WebImage(url: URL(string: vm.chatUser?.avatar ?? ""))
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipped()
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.black, lineWidth: 1))
+                .shadow(radius: 5)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("Username")
+                Text("\(vm.chatUser?.email ?? "")")
                     .font(.system(size: 24, weight: .bold))
                 
                 HStack {
@@ -55,9 +112,17 @@ struct MainMessagesView: View {
             .init(title: Text("Настройки"), message: Text("Что Вы хотите сделать?"), buttons: [
                 .destructive(Text("Выйти из аккаунта"), action: {
                     print("выйти из аккаунта")
+                    
+                    vm.handleSignOut()
                 }),
                 .cancel(Text("Отменить"))
             ])
+        }
+        .fullScreenCover(isPresented: $vm.isCurrentlyLoggedOut, onDismiss: nil) {
+            LoginView(didCompleteLoginProcess: {
+                self.vm.isCurrentlyLoggedOut = false
+                self.vm.fetchCurrentUser()
+            })
         }
     }
     
@@ -95,6 +160,7 @@ struct MainMessagesView: View {
     
     private var newMessageButton: some View {
         Button {
+            shouldShowNewMessageScreen.toggle()
         } label: {
             HStack {
                 Spacer()
@@ -108,6 +174,11 @@ struct MainMessagesView: View {
             .cornerRadius(32)
             .padding(.horizontal)
             .shadow(radius: 15)
+        }
+        .fullScreenCover(isPresented: $shouldShowNewMessageScreen) {
+            CreateNewMessageView(didSelectNewUser: { user in
+                print(user.email)
+            })
         }
     }
 }
