@@ -104,7 +104,6 @@ struct LoginView: View {
             loginUser()
         } else {
             createNewAccount()
-            //            print("Register a new account inside of Firebase")
         }
     }
     
@@ -168,7 +167,6 @@ struct LoginView: View {
                 if let error = error {
                     self.loginStatusMessage = "Ошибка сохранения: \(error.localizedDescription)"
                 }
-                
                 self.didCompleteLoginProcess()
             }
     }

@@ -57,6 +57,10 @@ struct MainMessagesView: View {
     @State var shouldShowLogOutOptions = false
     @State var shouldShowNewMessageScreen = false
     
+    @State var chatUser: ChatUser?
+    
+    @State var shouldNavigateToChatLogView: Bool = false
+    
     @ObservedObject private var vm = MainMessagesViewModel()
     
     var body: some View {
@@ -65,6 +69,10 @@ struct MainMessagesView: View {
                 
                 customNavBar
                 messagesView
+                
+                NavigationLink("", isActive: $shouldNavigateToChatLogView) {
+                    ChatLogView(chatUser: self.chatUser)
+                }
             }
             // Расположение кнопки внизу
             .overlay(
@@ -75,7 +83,6 @@ struct MainMessagesView: View {
     
     private var customNavBar: some View {
         HStack {
-            
             WebImage(url: URL(string: vm.chatUser?.avatar ?? ""))
                 .resizable()
                 .scaledToFill()
@@ -91,7 +98,7 @@ struct MainMessagesView: View {
                 
                 HStack {
                     Circle()
-                        .foregroundColor(Color.green)
+                        .foregroundColor(Color.lightGreen)
                         .frame(width: 14, height: 14)
                     Text("online")
                         .font(.system(size: 12))
@@ -130,25 +137,29 @@ struct MainMessagesView: View {
         ScrollView {
             ForEach(0..<10, id: \.self) { num in
                 VStack {
-                    HStack(spacing: 16) {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 32))
-                            .padding()
-                            .overlay(RoundedRectangle(cornerRadius: 44)
-                                .stroke(style: StrokeStyle(lineWidth: 1))
-                            )
-                        
-                        VStack(alignment: .leading) {
-                            Text("Имя")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("Сообщение отправлено пользователю")
-                                .font(.system(size: 14))
-                                .foregroundColor(Color.gray)
+                    
+                    NavigationLink {
+                        Text("des")
+                    } label: {
+                        HStack(spacing: 16) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 32))
+                                .padding()
+                                .overlay(RoundedRectangle(cornerRadius: 44)
+                                    .stroke(style: StrokeStyle(lineWidth: 1)))
+                            
+                            VStack(alignment: .leading) {
+                                Text("Имя")
+                                    .font(.system(size: 16, weight: .bold))
+                                Text("Сообщение отправлено пользователю")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.gray)}
+                            
+                            Spacer()
+                            
+                            Text("22d")
+                                .font(.system(size: 14, weight: .semibold))
                         }
-                        Spacer()
-                        
-                        Text("22d")
-                            .font(.system(size: 14, weight: .semibold))
                     }
                     Divider()
                         .padding(.vertical, 8)
@@ -178,6 +189,9 @@ struct MainMessagesView: View {
         .fullScreenCover(isPresented: $shouldShowNewMessageScreen) {
             CreateNewMessageView(didSelectNewUser: { user in
                 print(user.email)
+                
+                self.shouldNavigateToChatLogView.toggle()
+                self.chatUser = user
             })
         }
     }
