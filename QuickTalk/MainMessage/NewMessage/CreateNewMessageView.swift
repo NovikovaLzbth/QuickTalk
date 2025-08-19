@@ -65,7 +65,6 @@ struct CreateNewMessageView: View {
                                 .frame(width: 60, height: 60)
                                 .clipped()
                                 .clipShape(Circle())
-                                .overlay(Circle().stroke(Color.black, lineWidth: 2))
                                 .shadow(radius: 5)
                             
                             Text(user.email)

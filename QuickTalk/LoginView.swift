@@ -15,8 +15,10 @@ struct LoginView: View {
     @State private var isLoginMode = false
     @State private var email = ""
     @State private var password = ""
+    
     @State private var loginStatusMessage = ""
     @State private var shouldShowImagePicker = false
+    
     @State var image: UIImage?
     
     var body: some View {
@@ -44,11 +46,6 @@ struct LoginView: View {
                                         .scaledToFit()
                                         .frame(width: 128)
                                         .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.black, lineWidth: 3)
-                                        )
-                                    
                                 } else {
                                     Image(systemName: "person.fill")
                                         .font(.system(size: 64))

@@ -8,10 +8,13 @@
 import SwiftUI
 import Firebase
 
-struct FirebaseConatants {
+struct FirebaseConstants {
     static let fromId = "fromID"
     static let toId = "toId"
     static let text = "text"
+    static let timestamp = "timestamp"
+    static let avatar = "avatar"
+    static let email = "email"
 }
 
 struct ChatMessage: Identifiable {
@@ -22,9 +25,9 @@ struct ChatMessage: Identifiable {
     
     init(documentId: String, data: [String: Any]) {
         self.documentId = documentId
-        self.fromId = data[FirebaseConatants.fromId] as? String ?? ""
-        self.toId = data[FirebaseConatants.toId] as? String ?? ""
-        self.text = data[FirebaseConatants.text] as? String ?? ""
+        self.fromId = data[FirebaseConstants.fromId] as? String ?? ""
+        self.toId = data[FirebaseConstants.toId] as? String ?? ""
+        self.text = data[FirebaseConstants.text] as? String ?? ""
     }
 }
 
@@ -79,19 +82,21 @@ class ChatLogViewModel: ObservableObject {
         guard let toId = chatUser?.uid else { return }
         
         let document =
-        FirebaseManager.shared.firestore
-            .collection("messages")
+        FirebaseManager.shared.firestore.collection("messages")
             .document(fromId)
             .collection(toId)
             .document()
         
-        let messageData = [FirebaseConatants.fromId: fromId, FirebaseConatants.toId: toId, FirebaseConatants.text: self.chatText, "timestamp": Timestamp()] as [String : Any]
+        let messageData = [FirebaseConstants.fromId: fromId, FirebaseConstants.toId: toId, FirebaseConstants.text: self.chatText, FirebaseConstants.timestamp: Timestamp()] as [String : Any]
         
         document.setData(messageData) {error in
             if let error = error {
                 self.errorMessage = "\(error)"
             }
             print("Успешно сохранено")
+            
+            self.persistRecentMessage()
+            
             self.chatText = ""
             // Прокрутка к новому сообщению
             self.count += 1
@@ -108,6 +113,38 @@ class ChatLogViewModel: ObservableObject {
                 self.errorMessage = "\(error)"
             }
             print("Реципиент")
+        }
+    }
+    
+    // Отправленное сообщение
+    private func persistRecentMessage () {
+        guard let chatUser = chatUser else { return }
+        
+        guard let uid = FirebaseManager.shared.auth.currentUser?.uid else { return }
+        guard let toId = self.chatUser?.uid else { return }
+        
+        let document = FirebaseManager.shared.firestore
+            .collection("recent_messages")
+            .document(uid)
+            .collection("messages")
+            .document(toId)
+        
+        // В бд просмотр информации об отправленном сообщении
+        let data = [
+            FirebaseConstants.timestamp: Timestamp(),
+            FirebaseConstants.text: self.chatText,
+            FirebaseConstants.fromId: uid,
+            FirebaseConstants.toId: toId,
+            FirebaseConstants.avatar: chatUser.avatar,
+            FirebaseConstants.email: chatUser.email
+        ] as [String : Any]
+        
+        document.setData(data) { error in
+            if let error = error {
+                self.errorMessage = "Failed to save recent message: \(error)"
+                print("Failed to save recent message: \(error)")
+                return
+            }
         }
     }
 }
