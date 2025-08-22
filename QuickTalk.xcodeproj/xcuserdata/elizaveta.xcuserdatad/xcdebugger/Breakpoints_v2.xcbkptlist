@@ -8,7 +8,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "1559D219-DB48-4B5C-AF16-A7B5E0355E9C"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "QuickTalk/Model/ChatUser.swift"
@@ -30,10 +30,10 @@
             filePath = "QuickTalk/MainMessage/Chat/ChatLogView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "178"
-            endingLineNumber = "178"
-            landmarkName = "ChatLogView"
-            landmarkType = "14">
+            startingLineNumber = "164"
+            endingLineNumber = "164"
+            landmarkName = "body"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
